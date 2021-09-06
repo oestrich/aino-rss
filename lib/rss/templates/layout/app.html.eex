@@ -1,0 +1,11 @@
+<!DOCTYPE>
+<html>
+  <head>
+    <title>RSS Reader</title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <link href="https://unpkg.com/tailwindcss@2.2.7/dist/tailwind.min.css" rel="stylesheet" />
+  </head>
+  <body>
+    <%= @inner_content %>
+  </body>
+</html>

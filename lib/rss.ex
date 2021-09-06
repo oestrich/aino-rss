@@ -1,0 +1,2 @@
+defmodule RSS do
+end
