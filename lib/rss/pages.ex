@@ -23,12 +23,10 @@ defmodule RSS.Pages do
 end
 
 defmodule RSS.Pages.View do
-  require EEx
+  require Aino.View
 
-  EEx.function_from_file(:def, :render_index, "lib/rss/templates/pages/index.html.eex", [:assigns])
-  EEx.function_from_file(:def, :render_item, "lib/rss/templates/pages/item.html.eex", [:assigns])
-
-  def render("index.html", assigns), do: render_index(assigns)
-
-  def render("item.html", assigns), do: render_item(assigns)
+  Aino.View.compile [
+    "lib/rss/templates/pages/index.html.eex",
+    "lib/rss/templates/pages/item.html.eex"
+  ]
 end
