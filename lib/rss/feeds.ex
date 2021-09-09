@@ -146,10 +146,6 @@ defmodule RSS.Feeds.Cache do
     end
   end
 
-  def cache(url) do
-    GenServer.call(__MODULE__, {:cache, url})
-  end
-
   @doc false
   def cache_feed(feed) do
     GenServer.call(__MODULE__, {:cache_feed, feed})
