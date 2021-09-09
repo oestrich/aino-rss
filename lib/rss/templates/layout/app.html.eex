@@ -24,6 +24,11 @@
 #item-content h2 {
   font-size: 1.5rem;
 }
+
+#item-content img {
+  margin-left: auto;
+  margin-right: auto;
+}
     </style>
   </head>
   <body>
