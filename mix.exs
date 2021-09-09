@@ -24,6 +24,7 @@ defmodule RSS.MixProject do
     [
       {:aino, path: "./../"},
       {:finch, "~> 0.8"},
+      {:html_sanitize_ex, "~> 1.4"},
       {:sweet_xml, "~> 0.7.1"}
     ]
   end

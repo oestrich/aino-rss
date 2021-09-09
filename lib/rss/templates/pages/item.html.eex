@@ -11,6 +11,10 @@
   </h2>
 
   <div class="mt-4">
+    <a href="/items/<%= @item.guid %>" class="text-lg"><%= @item.title %></a>
+  </div>
+
+  <div class="mt-4" id="item-content">
     <%= @item.text %>
   </div>
 </div>

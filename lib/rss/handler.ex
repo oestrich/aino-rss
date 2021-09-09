@@ -15,7 +15,6 @@ defmodule RSS.Handler do
     ]
 
     wrappers = [
-      &Aino.Wrappers.Development.recompile/1,
       Aino.Wrappers.common(),
       &Aino.Session.salt(&1, "salted"),
       &Aino.Session.parse/1,

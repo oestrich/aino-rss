@@ -1,15 +1,11 @@
 defmodule RSS.Feeds do
-  alias Aino.Token
-  alias RSS.Feeds.Cache, as: Feeds
+  alias Aino.Token.Response
+  alias RSS.Feeds
 
   def create(token) do
-    case Feeds.cache(token.parsed_body["feed_url"]) do
+    case Feeds.Fetcher.cache_feed(token.parsed_body["feed_url"]) do
       :ok ->
-        token
-        |> Token.response_status(302)
-        |> Token.response_header("Content-Type", "text/html")
-        |> Token.response_header("Location", "/")
-        |> Token.response_body("Redirecting...")
+        Response.redirect(token, "/")
     end
   end
 end
@@ -29,13 +25,19 @@ defmodule RSS.Feeds.Remote do
               ~x"//item"l,
               title: ~x"./title/text()"s,
               link: ~x"./link/text()"s,
-              text: ~x"./content:encoded/text()"s,
+              text: ~x"./content:encoded/text()"s |> SweetXml.transform_by(&sanitize/1),
               guid: ~x"./guid/text()"s |> SweetXml.transform_by(&guid/1)
             ]
           ])
 
+        feed = Map.put(feed, :url, url)
+
         {:ok, feed}
     end
+  end
+
+  def sanitize(text) do
+    HtmlSanitizeEx.basic_html(text)
   end
 
   def guid(text) do
@@ -43,72 +45,138 @@ defmodule RSS.Feeds.Remote do
   end
 end
 
-defmodule RSS.Feeds.Cache do
+defmodule RSS.Feeds.Fetcher do
   use GenServer
 
+  alias RSS.Feeds.Cache
   alias RSS.Feeds.Remote
-
-  def all() do
-    []
-  end
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def get() do
-    Map.values(:sys.get_state(__MODULE__))
+  def cache_feed(url) do
+    GenServer.cast(__MODULE__, {:cache, url})
+  end
+
+  @impl true
+  def init(_) do
+    {:ok, :undefined}
+  end
+
+  @impl true
+  def handle_cast({:cache, url}, state) do
+    {:ok, feed} = Remote.fetch(url)
+
+    Cache.cache_feed(feed)
+
+    Enum.each(feed.items, fn item ->
+      item = Map.put(item, :feed, feed.title)
+      Cache.cache_item(item)
+    end)
+
+    {:noreply, state}
+  end
+end
+
+defmodule RSS.Feeds.Refresher do
+  use GenServer
+
+  require Logger
+
+  alias RSS.Feeds.Cache
+  alias RSS.Feeds.Fetcher
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def refresh() do
+    GenServer.cast(__MODULE__, :refresh)
+  end
+
+  @impl true
+  def init(_) do
+    state = refresh_async(%{})
+
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_info(:refresh, state) do
+    Logger.info("Refreshing feeds")
+
+    Enum.map(Cache.all(), fn feed ->
+      Fetcher.cache_feed(feed.url)
+    end)
+
+    state = refresh_async(state)
+
+    {:noreply, state}
+  end
+
+  defp refresh_async(state) do
+    ref = Process.send_after(self(), :refresh, 10 * 60 * 1000)
+    Map.put(state, :refresh_ref, ref)
+  end
+end
+
+defmodule RSS.Feeds.Cache do
+  use GenServer
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def all() do
+    feeds = :ets.lookup(__MODULE__, :feed)
+
+    Enum.map(feeds, fn {:feed, feed} ->
+      feed
+    end)
   end
 
   def get(item_id) do
-    get()
-    |> Enum.flat_map(fn feed ->
-      Enum.map(feed.items, fn item ->
-        Map.put(item, :feed, feed.title)
-      end)
-    end)
-    |> Enum.find(fn item ->
-      item.guid == item_id
-    end)
+    case :ets.lookup(__MODULE__, item_id) do
+      [{_key, item}] ->
+        {:ok, item}
+
+      [] ->
+        {:error, :not_found}
+    end
   end
 
   def cache(url) do
     GenServer.call(__MODULE__, {:cache, url})
   end
 
+  @doc false
+  def cache_feed(feed) do
+    GenServer.call(__MODULE__, {:cache_feed, feed})
+  end
+
+  @doc false
+  def cache_item(item) do
+    GenServer.call(__MODULE__, {:cache_item, item})
+  end
+
   @impl true
   def init(_) do
-    Process.send_after(self(), :refresh, 60 * 60 * 1000)
+    :ets.new(__MODULE__, [:bag, :protected, :named_table])
 
-    {:ok, %{}, {:continue, :cache}}
+    {:ok, :undefined}
   end
 
   @impl true
-  def handle_continue(:cache, state) do
-    state =
-      Enum.reduce(all(), state, fn url, state ->
-        {:ok, feed} = Remote.fetch(url)
-        Map.put(state, url, feed)
-      end)
+  def handle_call({:cache_feed, feed}, _from, state) do
+    :ets.insert(__MODULE__, {:feed, feed})
 
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_call({:cache, url}, _from, state) do
-    {:ok, feed} = Remote.fetch(url)
-    state = Map.put(state, url, feed)
     {:reply, :ok, state}
   end
 
-  @impl true
-  def handle_info(:refresh, state) do
-    state =
-      Enum.reduce(Map.keys(state), state, fn url, state ->
-        {:ok, feed} = Remote.fetch(url)
-        Map.put(state, url, feed)
-      end)
+  def handle_call({:cache_item, item}, _from, state) do
+    :ets.insert(__MODULE__, {item.guid, item})
 
-    {:noreply, state}
+    {:reply, :ok, state}
   end
 end

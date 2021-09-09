@@ -1,24 +1,29 @@
 defmodule RSS.Pages do
   alias Aino.Token
-  alias RSS.Feeds.Cache, as: Feeds
+  alias Aino.Token.Response
+  alias RSS.Feeds
   alias RSS.Pages.View
 
   def index(token) do
-    feeds = Feeds.get()
+    feeds = Feeds.Cache.all()
 
     token
     |> Token.response_status(200)
-    |> Token.response_header("Content-Type", "text/html")
-    |> Token.response_body(View.render("index.html", %{feeds: feeds}))
+    |> Response.html(View.render("index.html", %{feeds: feeds}))
   end
 
-  def item(%{path_params: %{id: item_id}} = token) do
-    item = Feeds.get(item_id)
+  def item(%{params: %{"id" => item_id}} = token) do
+    case Feeds.Cache.get(item_id) do
+      {:ok, item} ->
+        token
+        |> Token.response_status(200)
+        |> Response.html(View.render("item.html", %{item: item}))
 
-    token
-    |> Token.response_status(200)
-    |> Token.response_header("Content-Type", "text/html")
-    |> Token.response_body(View.render("item.html", %{item: item}))
+      {:error, :not_found} ->
+        token
+        |> Token.response_status(404)
+        |> Response.html(View.render("not-found.html"))
+    end
   end
 end
 
@@ -27,6 +32,7 @@ defmodule RSS.Pages.View do
 
   Aino.View.compile [
     "lib/rss/templates/pages/index.html.eex",
-    "lib/rss/templates/pages/item.html.eex"
+    "lib/rss/templates/pages/item.html.eex",
+    "lib/rss/templates/pages/not-found.html.eex"
   ]
 end

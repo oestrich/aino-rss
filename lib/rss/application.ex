@@ -9,7 +9,9 @@ defmodule RSS.Application do
   def start(_type, _args) do
     children = [
       {Finch, name: RSS.Finch},
+      RSS.Feeds.Fetcher,
       RSS.Feeds.Cache,
+      RSS.Feeds.Refresher,
       {Aino, callback: RSS.Handler, port: 3000}
     ]
 
