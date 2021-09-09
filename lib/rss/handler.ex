@@ -16,15 +16,11 @@ defmodule RSS.Handler do
 
     wrappers = [
       Aino.Wrappers.common(),
-      &Aino.Session.salt(&1, "salted"),
-      &Aino.Session.parse/1,
       &Aino.Routes.routes(&1, routes),
       &Aino.Routes.match_route/1,
       &Aino.Wrappers.params/1,
       &Aino.Routes.handle_route/1,
-      &Aino.Wrappers.Development.inspect(&1, :params),
       &Layout.wrap/1,
-      &Aino.Session.set/1,
     ]
 
     Aino.Token.reduce(token, wrappers)
