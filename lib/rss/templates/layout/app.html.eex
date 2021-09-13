@@ -4,6 +4,7 @@
     <title>RSS Reader</title>
     <meta http-equiv="content-type" content="text/html;charset=utf-8" />
     <link href="https://unpkg.com/tailwindcss@2.2.7/dist/tailwind.min.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
 #item-content p {
@@ -32,6 +33,8 @@
     </style>
   </head>
   <body>
-    <%= @inner_content %>
+    <div class="mx-auto mt-2 px-4 xl:w-1/2">
+      <%= @inner_content %>
+    </div>
   </body>
 </html>

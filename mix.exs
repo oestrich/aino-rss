@@ -22,7 +22,7 @@ defmodule RSS.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:aino, path: "./../"},
+      {:aino, github: "oestrich/aino"},
       {:finch, "~> 0.8"},
       {:html_sanitize_ex, "~> 1.4"},
       {:sweet_xml, "~> 0.7.1"}

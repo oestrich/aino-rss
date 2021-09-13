@@ -129,15 +129,33 @@ defmodule RSS.Feeds.Cache do
   end
 
   def all() do
-    feeds = :ets.lookup(__MODULE__, :feed)
+    Enum.map(keys(:rss_feeds), fn key ->
+      case :ets.lookup(:rss_feeds, key) do
+        [{^key, feed}] ->
+          feed
 
-    Enum.map(feeds, fn {:feed, feed} ->
-      feed
+        [] ->
+          nil
+      end
     end)
   end
 
+  @doc false
+  def keys(ets_key) do
+    key = :ets.first(ets_key)
+    keys(key, [], ets_key)
+  end
+
+  @doc false
+  def keys(:"$end_of_table", accumulator, _ets_key), do: accumulator
+
+  def keys(current_key, accumulator, ets_key) do
+    next_key = :ets.next(ets_key, current_key)
+    keys(next_key, [current_key | accumulator], ets_key)
+  end
+
   def get(item_id) do
-    case :ets.lookup(__MODULE__, item_id) do
+    case :ets.lookup(:rss_items, item_id) do
       [{_key, item}] ->
         {:ok, item}
 
@@ -158,20 +176,21 @@ defmodule RSS.Feeds.Cache do
 
   @impl true
   def init(_) do
-    :ets.new(__MODULE__, [:bag, :protected, :named_table])
+    :ets.new(:rss_feeds, [:set, :protected, :named_table])
+    :ets.new(:rss_items, [:set, :protected, :named_table])
 
     {:ok, :undefined}
   end
 
   @impl true
   def handle_call({:cache_feed, feed}, _from, state) do
-    :ets.insert(__MODULE__, {:feed, feed})
+    :ets.insert(:rss_feeds, {feed.url, feed})
 
     {:reply, :ok, state}
   end
 
   def handle_call({:cache_item, item}, _from, state) do
-    :ets.insert(__MODULE__, {item.guid, item})
+    :ets.insert(:rss_items, {item.guid, item})
 
     {:reply, :ok, state}
   end
